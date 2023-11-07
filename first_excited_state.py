@@ -96,16 +96,28 @@ from keras.callbacks import ReduceLROnPlateau
 
 reduce_lr = ReduceLROnPlateau(monitor='loss', factor=0.5, patience=200, min_lr=1e-5, verbose=1)
 
-results = model.fit(x, first_excited, epochs=120000, steps_per_epoch=1, verbose=1, shuffle=False, callbacks=[reduce_lr])
-
+results = model.fit(x, first_excited, epochs=20000, steps_per_epoch=1, verbose=1, shuffle=False, callbacks=[reduce_lr])
 pred = model.predict(x)
 func = psi(pred)
 func = func / np.sqrt(np.sum(func**2) / N)
+plt.figure(figsize=(10, 0))
+plt.subplot(1, 2, 1)
 plt.xlim(0, 1)
 plt.plot(x, func, label="fitted")
-plt.plot(x, first_excited, label="answer", linestyle='dashed')
-plt.plot(x, first_excited_minus, label="answer", linestyle='dashed')
+plt.plot(x, first_excited, label="answer")
+plt.plot(x, first_excited_minus, label="answer minus")
 plt.legend()
 plt.xlabel("$x$")
 plt.ylabel(r"$\psi(x)$")
+
+# Plotting loss
+plt.subplot(1, 2, 2)
+plt.ylim(0, 10)
+plt.plot(results.history['loss'])
+plt.xlabel('Epochs')
+plt.ylabel('Loss')
+plt.title('Training Loss')
+
+plt.tight_layout()
 plt.show()
+

@@ -73,7 +73,7 @@ def compute_kinetic_energy_and_orthogonality(y_pred):
 learning_rate = 0.001
 optimizer = Adam(learning_rate=learning_rate,epsilon=1e-9)
 
-model = Sequential([
+
 model = Sequential([
     Dense(256, input_dim=1),
     LeakyReLU(alpha=0.3),
@@ -100,8 +100,7 @@ model = Sequential([
 
     Dense(1, activation="linear")
 ])
-    Dense(1, activation="linear")
-])
+
 
 model.compile(loss=variationalE, optimizer=optimizer)
 model.summary()
@@ -110,19 +109,28 @@ from keras.callbacks import ReduceLROnPlateau
 
 reduce_lr = ReduceLROnPlateau(monitor='loss', factor=0.5, patience=200, min_lr=1e-5, verbose=1)
 
-results = model.fit(x, second_excited_answer, epochs=30000, steps_per_epoch=1, verbose=1, shuffle=False, callbacks=[reduce_lr])
+results = model.fit(x, second_excited_answer, epochs=10000, steps_per_epoch=1, verbose=1, shuffle=False, callbacks=[reduce_lr])
 
 pred = model.predict(x)
 func = psi(pred)
 func = func / np.sqrt(np.sum(func**2) / N)
-#kinetic_energy_val, orthogonality_penalty_val = compute_kinetic_energy_and_orthogonality(pred)
-#print(f"Kinetic Energy: {kinetic_energy_val}")
-#print(f"Orthogonality Penalty: {orthogonality_penalty_val}")
+plt.figure(figsize=(10, 0))
+plt.subplot(1, 2, 1)
 plt.xlim(0, 1)
 plt.plot(x, func, label="fitted")
-plt.plot(x, second_excited_answer, label="answer", linestyle='dashed')
-plt.plot(x, second_excited_answer_minus, label="answer", linestyle='dashed')
+plt.plot(x, second_excited_answer, label="answer")
+plt.plot(x, second_excited_answer_minus, label="answer minus")
 plt.legend()
 plt.xlabel("$x$")
 plt.ylabel(r"$\psi(x)$")
+
+# Plotting loss
+plt.subplot(1, 2, 2)
+plt.ylim(0, 10)
+plt.plot(results.history['loss'])
+plt.xlabel('Epochs')
+plt.ylabel('Loss')
+plt.title('Training Loss')
+
+#plt.tight_layout()
 plt.show()

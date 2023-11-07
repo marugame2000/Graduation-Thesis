@@ -96,7 +96,7 @@ from keras.callbacks import ReduceLROnPlateau
 
 reduce_lr = ReduceLROnPlateau(monitor='loss', factor=0.5, patience=200, min_lr=1e-5, verbose=1)
 
-results = model.fit(x, first_excited, epochs=100000, steps_per_epoch=1, verbose=1, shuffle=False, callbacks=[reduce_lr])
+results = model.fit(x, first_excited, epochs=120000, steps_per_epoch=1, verbose=1, shuffle=False, callbacks=[reduce_lr])
 
 pred = model.predict(x)
 func = psi(pred)

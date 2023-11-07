@@ -15,15 +15,12 @@ ground_state=np.sqrt(2)*np.sin(np.pi*x)
 first_excited=(1)*np.sqrt(2)*np.sin(np.pi*2*x)
 first_excited_minus=(-1)*np.sqrt(2)*np.sin(np.pi*2*x)
 
-
 def psi(y):
     #indices = tf.constant([[0], [-1]]) 
     #updates = tf.constant([[0.0], [0.0]], dtype=tf.float32) 
     #y_symmetrized = tf.tensor_scatter_nd_update(y, indices, updates)
     y_symmetrized=y
     return y_symmetrized
-
-
 
 #def psi(y):
     y_rev = K.reverse(y,0)
@@ -99,7 +96,7 @@ from keras.callbacks import ReduceLROnPlateau
 
 reduce_lr = ReduceLROnPlateau(monitor='loss', factor=0.5, patience=200, min_lr=1e-5, verbose=1)
 
-results = model.fit(x, first_excited, epochs=50000, steps_per_epoch=1, verbose=1, shuffle=False, callbacks=[reduce_lr])
+results = model.fit(x, first_excited, epochs=100000, steps_per_epoch=1, verbose=1, shuffle=False, callbacks=[reduce_lr])
 
 pred = model.predict(x)
 func = psi(pred)

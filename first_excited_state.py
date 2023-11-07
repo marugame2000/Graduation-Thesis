@@ -16,12 +16,6 @@ first_excited=(1)*np.sqrt(2)*np.sin(np.pi*2*x)
 first_excited_minus=(-1)*np.sqrt(2)*np.sin(np.pi*2*x)
 
 
-
-#境界で0出ない場合ペナルてxい跳ね上げる
-#調和振動子
-#Adam変えてみる
-
-
 def psi(y):
     #indices = tf.constant([[0], [-1]]) 
     #updates = tf.constant([[0.0], [0.0]], dtype=tf.float32) 

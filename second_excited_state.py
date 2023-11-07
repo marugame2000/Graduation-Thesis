@@ -74,16 +74,32 @@ learning_rate = 0.001
 optimizer = Adam(learning_rate=learning_rate,epsilon=1e-9)
 
 model = Sequential([
-    Dense(2048, input_dim=1),
+model = Sequential([
+    Dense(256, input_dim=1),
+    LeakyReLU(alpha=0.3),
+
+    Dense(128),
     LeakyReLU(alpha=0.3),
     #BatchNormalization(),
 
-    Dense(1024),
+    Dense(128),
     LeakyReLU(alpha=0.3),
     #BatchNormalization(),
 
+    Dense(128),
+    LeakyReLU(alpha=0.3),
+    #BatchNormalization(),
 
+    Dense(64),
+    LeakyReLU(alpha=0.3),
+    #BatchNormalization(),
 
+    Dense(64),
+    LeakyReLU(alpha=0.3),
+    #BatchNormalization(),
+
+    Dense(1, activation="linear")
+])
     Dense(1, activation="linear")
 ])
 

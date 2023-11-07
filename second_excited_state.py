@@ -73,7 +73,7 @@ model.add(Dense(1, activation="linear"))
 model.compile(loss=variationalE, optimizer=optimizer)
 model.summary()
 
-results = model.fit(x, second_excited_answer, epochs=1000, steps_per_epoch=1, verbose=1, shuffle=False)
+results = model.fit(x, second_excited_answer, epochs=2000, steps_per_epoch=1, verbose=1, shuffle=False)
 
 
 pred = model.predict(x)

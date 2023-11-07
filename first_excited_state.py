@@ -59,7 +59,7 @@ def variationalE(y_true, y_pred):
 model = Sequential([
     Dense(256, input_dim=1),
     LeakyReLU(alpha=0.3),
-    #BatchNormalization(),
+
 
     Dense(128),
     LeakyReLU(alpha=0.3),

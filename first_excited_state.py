@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 
 # 定数の定義
 N = 5000  # 格子点の数
-epochs = 1000  # 学習のエポック数
+epochs = 50000  # 学習のエポック数
 
 # 損失関数の重みの定義
 orthogonality_penalty_weight = 2e-8  # 直交性ペナルティの重み
@@ -49,8 +49,8 @@ def variationalE(y_true, y_pred):
 
 # ニューラルネットワークモデルの構築
 model = Sequential([
-    Dense(1024, input_dim=1, activation=LeakyReLU(alpha=0.3)),
-    Dense(512, activation=LeakyReLU(alpha=0.3)),
+    Dense(2048, input_dim=1, activation=LeakyReLU(alpha=0.3)),
+    Dense(1024, activation=LeakyReLU(alpha=0.3)),
     Dense(1, activation="linear")
 ])
 
@@ -85,19 +85,46 @@ plt.xlabel("$x$")
 plt.ylabel(r"$\Psi(x)$")
 
 # Plotting loss
-plt.subplot(1, 2, 2)
-plt.ylim(0, 10)
+# 結果のプロット
+plt.figure(figsize=(10, 5))  # サイズ調整をすることで下部にスペースを作る
+plt.subplot(1, 2, 1)  # 2行1列の1番目のプロットとして設定
+plt.xlim(0, 1)
+plt.plot(x, func, label="Fitted")
+plt.plot(x, first_excited, "--", label="Answer")
+plt.plot(x, first_excited_minus, "--", label="Answer Minus")
+plt.legend()
+plt.xlabel("$x$")
+plt.ylabel(r"$\psi(x)$")
+
+# 損失のプロット（片対数グラフ）
+plt.subplot(1,2,2)  # 2行1列の2番目のプロットとして設定
+plt.yscale('log')  # 縦軸を対数スケールに設定
+plt.ylim(0, 50)
 plt.plot(results.history['loss'])
 plt.xlabel('Epochs')
 plt.ylabel('Loss')
-plt.title('Training Loss')
+plt.title('Training Loss (Log Scale)')
+
+# 最後の100エポックの損失値を取得
+last_100_epochs_loss = results.history['loss'][-100:]
+
+# 最後の100エポックの平均損失値を計算
+average_loss_last_100 = np.mean(last_100_epochs_loss)
+
+# 最後の100エポックの平均損失値をグラフに追加
+plt.text(0.5, 0.95, f'Avg. Loss (Last 100 Epochs): {average_loss_last_100:.4e}', horizontalalignment='center', verticalalignment='top', transform=plt.gca().transAxes)
 
 # グラフ全体にテキスト情報を追加
-info_text = f'N: {N}\nEpochs: {epochs}\nOrthogonality Penalty Weight: {orthogonality_penalty_weight:e}\nEdge Penalty Weight: {edge_penalty_weight:e}'
+info_text = (f'N: {N}\n'
+             f'Epochs: {epochs}\n'
+             f'Orthogonality Penalty Weight: {orthogonality_penalty_weight:e}\n'
+             f'Edge Penalty Weight: {edge_penalty_weight:e}\n'
+             f'Avg. Loss (Last 100 Epochs): {average_loss_last_100:.4e}')
 plt.figtext(0.5, 0.05, info_text, ha="center", fontsize=10, bbox={"facecolor":"white", "alpha":0.5, "pad":5})
 
 # 表示前にレイアウトを調整
-plt.tight_layout()
+plt.tight_layout(rect=[0, 0.03, 1, 0.95])  # rectパラメータで図の余白を調整
 
 # 表示
 plt.show()
+

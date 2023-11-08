@@ -49,11 +49,8 @@ def variationalE(y_true, y_pred):
 
 # ニューラルネットワークモデルの構築
 model = Sequential([
-    Dense(256, input_dim=1, activation=LeakyReLU(alpha=0.3)),
-    Dense(128, activation=LeakyReLU(alpha=0.3)),
-    Dense(128, activation=LeakyReLU(alpha=0.3)),
-    Dense(64, activation=LeakyReLU(alpha=0.3)),
-    Dense(64, activation=LeakyReLU(alpha=0.3)),
+    Dense(1024, input_dim=1, activation=LeakyReLU(alpha=0.3)),
+    Dense(512, activation=LeakyReLU(alpha=0.3)),
     Dense(1, activation="linear")
 ])
 

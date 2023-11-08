@@ -9,13 +9,12 @@ import matplotlib.pyplot as plt
 from keras.optimizers import Adam
 from keras.callbacks import ReduceLROnPlateau
 
-# 定数の定義
+
 N = 5000  # 格子点の数
 epochs = 3000  # 学習のエポック数
 
-# 損失関数の重みの定義
 orthogonality_penalty_weight = 5e-9  # 直交性ペナルティの重み
-edge_penalty_weight = 1e8  # 端のペナルティの重み
+edge_penalty_weight = 1e4 # 端のペナルティの重み
 
 
 x = np.linspace(0, 1, N)
@@ -58,11 +57,8 @@ def variationalE(y_true, y_pred):
 
 # ニューラルネットワークモデルの構築
 model = Sequential([
-    Dense(256, input_dim=1, activation=LeakyReLU(alpha=0.3)),
-    Dense(128, activation=LeakyReLU(alpha=0.3)),
-    Dense(128, activation=LeakyReLU(alpha=0.3)),
-    Dense(64, activation=LeakyReLU(alpha=0.3)),
-    Dense(64, activation=LeakyReLU(alpha=0.3)),
+    Dense(1024, input_dim=1, activation=LeakyReLU(alpha=0.3)),
+    Dense(512, activation=LeakyReLU(alpha=0.3)),
     Dense(1, activation="linear")
 ])
 

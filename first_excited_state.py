@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 
 # 定数の定義
 N = 5000  # 格子点の数
-epochs = 3000  # 学習のエポック数
+epochs = 1000  # 学習のエポック数
 
 # 損失関数の重みの定義
 orthogonality_penalty_weight = 2e-8  # 直交性ペナルティの重み
@@ -92,5 +92,12 @@ plt.xlabel('Epochs')
 plt.ylabel('Loss')
 plt.title('Training Loss')
 
-#plt.tight_layout()
+# グラフ全体にテキスト情報を追加
+info_text = f'N: {N}\nEpochs: {epochs}\nOrthogonality Penalty Weight: {orthogonality_penalty_weight:e}\nEdge Penalty Weight: {edge_penalty_weight:e}'
+plt.figtext(0.5, 0.05, info_text, ha="center", fontsize=10, bbox={"facecolor":"white", "alpha":0.5, "pad":5})
+
+# 表示前にレイアウトを調整
+plt.tight_layout()
+
+# 表示
 plt.show()

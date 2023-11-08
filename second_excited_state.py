@@ -11,10 +11,10 @@ from keras.callbacks import ReduceLROnPlateau
 
 
 N = 5000  # 格子点の数
-epochs = 3000  # 学習のエポック数
+epochs = 100  # 学習のエポック数
 
 orthogonality_penalty_weight = 5e-9  # 直交性ペナルティの重み
-edge_penalty_weight = 1e4 # 端のペナルティの重み
+edge_penalty_weight = 1e7 # 端のペナルティの重み
 
 
 x = np.linspace(0, 1, N)
@@ -57,8 +57,8 @@ def variationalE(y_true, y_pred):
 
 # ニューラルネットワークモデルの構築
 model = Sequential([
-    Dense(1024, input_dim=1, activation=LeakyReLU(alpha=0.3)),
-    Dense(512, activation=LeakyReLU(alpha=0.3)),
+    Dense(2048, input_dim=1, activation=LeakyReLU(alpha=0.3)),
+    Dense(1024, activation=LeakyReLU(alpha=0.3)),
     Dense(1, activation="linear")
 ])
 
@@ -88,6 +88,7 @@ results = model.fit(
 pred = model.predict(x)
 func = psi(pred)
 func /= np.sqrt(np.sum(func**2) / N)
+# 以下のコードをプロットの後に追加します。
 
 # 結果のプロット
 plt.figure(figsize=(10, 5))
@@ -107,4 +108,14 @@ plt.plot(results.history['loss'])
 plt.xlabel('Epochs')
 plt.ylabel('Loss')
 plt.title('Training Loss')
+
+# グラフ全体にテキスト情報を追加
+info_text = f'N: {N}\nEpochs: {epochs}\nOrthogonality Penalty Weight: {orthogonality_penalty_weight:e}\nEdge Penalty Weight: {edge_penalty_weight:e}'
+plt.figtext(0.5, 0.05, info_text, ha="center", fontsize=10, bbox={"facecolor":"white", "alpha":0.5, "pad":5})
+
+# 表示前にレイアウトを調整
+plt.tight_layout()
+
+# 表示
 plt.show()
+

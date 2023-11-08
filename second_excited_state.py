@@ -10,12 +10,11 @@ from keras.optimizers import Adam
 from keras.callbacks import ReduceLROnPlateau
 
 
-N = 5000  # 格子点の数
-epochs = 100  # 学習のエポック数
+N = 10000  # 格子点の数
+epochs = 50000  # 学習のエポック数
 
-orthogonality_penalty_weight = 5e-9  # 直交性ペナルティの重み
-edge_penalty_weight = 1e7 # 端のペナルティの重み
-
+orthogonality_penalty_weight = 7e-8  # 直交性ペナルティの重み
+edge_penalty_weight = 1e9 # 端のペナルティの重み
 
 x = np.linspace(0, 1, N)
 # 目標とする波動関数の定義
@@ -57,8 +56,11 @@ def variationalE(y_true, y_pred):
 
 # ニューラルネットワークモデルの構築
 model = Sequential([
-    Dense(2048, input_dim=1, activation=LeakyReLU(alpha=0.3)),
-    Dense(1024, activation=LeakyReLU(alpha=0.3)),
+    Dense(256, input_dim=1, activation=LeakyReLU(alpha=0.3)),
+    Dense(128, activation=LeakyReLU(alpha=0.3)),
+    Dense(128, activation=LeakyReLU(alpha=0.3)),
+    Dense(64, activation=LeakyReLU(alpha=0.3)),
+    Dense(64, activation=LeakyReLU(alpha=0.3)),
     Dense(1, activation="linear")
 ])
 
@@ -84,37 +86,49 @@ results = model.fit(
     callbacks=[reduce_lr]
 )
 
-# 予測結果の取得
+# 予測と描画
 pred = model.predict(x)
 func = psi(pred)
-func /= np.sqrt(np.sum(func**2) / N)
-# 以下のコードをプロットの後に追加します。
+func = func / np.sqrt(np.sum(func ** 2) / N)
 
 # 結果のプロット
-plt.figure(figsize=(10, 5))
-plt.subplot(1, 2, 1)
+plt.figure(figsize=(10, 5))  # サイズ調整をすることで下部にスペースを作る
+plt.subplot(1, 2, 1)  # 2行1列の1番目のプロットとして設定
 plt.xlim(0, 1)
 plt.plot(x, func, label="Fitted")
-plt.plot(x, second_excited_answer,  "--",label="Answer")
-plt.plot(x, second_excited_answer_minus,  "--",label="Answer Minus")
+plt.plot(x, second_excited_answer, "--", label="Answer")
+plt.plot(x, second_excited_answer_minus, "--", label="Answer Minus")
 plt.legend()
 plt.xlabel("$x$")
 plt.ylabel(r"$\psi(x)$")
 
-# 損失のプロット
-plt.subplot(1, 2, 2)
+# 損失のプロット（片対数グラフ）
+plt.subplot(1,2,2)  # 2行1列の2番目のプロットとして設定
 plt.ylim(0, 10)
 plt.plot(results.history['loss'])
 plt.xlabel('Epochs')
 plt.ylabel('Loss')
-plt.title('Training Loss')
+plt.title('Training Loss (Log Scale)')
+
+# 最後の100エポックの損失値を取得
+last_100_epochs_loss = results.history['loss'][-100:]
+
+# 最後の100エポックの平均損失値を計算
+average_loss_last_100 = np.mean(last_100_epochs_loss)
+
+# 最後の100エポックの平均損失値をグラフに追加
+plt.text(0.5, 0.95, f'Avg. Loss (Last 100 Epochs): {average_loss_last_100:.4e}', horizontalalignment='center', verticalalignment='top', transform=plt.gca().transAxes)
 
 # グラフ全体にテキスト情報を追加
-info_text = f'N: {N}\nEpochs: {epochs}\nOrthogonality Penalty Weight: {orthogonality_penalty_weight:e}\nEdge Penalty Weight: {edge_penalty_weight:e}'
+info_text = (f'N: {N}\n'
+             f'Epochs: {epochs}\n'
+             f'Orthogonality Penalty Weight: {orthogonality_penalty_weight:e}\n'
+             f'Edge Penalty Weight: {edge_penalty_weight:e}\n'
+             f'Avg. Loss (Last 100 Epochs): {average_loss_last_100:.4e}')
 plt.figtext(0.5, 0.05, info_text, ha="center", fontsize=10, bbox={"facecolor":"white", "alpha":0.5, "pad":5})
 
 # 表示前にレイアウトを調整
-plt.tight_layout()
+plt.tight_layout(rect=[0, 0.03, 1, 0.95])  # rectパラメータで図の余白を調整
 
 # 表示
 plt.show()

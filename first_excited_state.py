@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 
 # 定数の定義
 N = 5000  # 格子点の数
-epochs = 50000  # 学習のエポック数
+epochs = 30000  # 学習のエポック数
 
 # 損失関数の重みの定義
 orthogonality_penalty_weight = 2e-8  # 直交性ペナルティの重み
@@ -49,8 +49,11 @@ def variationalE(y_true, y_pred):
 
 # ニューラルネットワークモデルの構築
 model = Sequential([
-    Dense(2048, input_dim=1, activation=LeakyReLU(alpha=0.3)),
-    Dense(1024, activation=LeakyReLU(alpha=0.3)),
+    Dense(256, input_dim=1, activation=LeakyReLU(alpha=0.3)),
+    Dense(128, activation=LeakyReLU(alpha=0.3)),
+    Dense(128, activation=LeakyReLU(alpha=0.3)),
+    Dense(64, activation=LeakyReLU(alpha=0.3)),
+    Dense(64, activation=LeakyReLU(alpha=0.3)),
     Dense(1, activation="linear")
 ])
 
@@ -74,17 +77,7 @@ results = model.fit(x, first_excited, epochs=epochs, steps_per_epoch=1, verbose=
 pred = model.predict(x)
 func = psi(pred)
 func = func / np.sqrt(np.sum(func ** 2) / N)
-plt.figure(figsize=(10, 5))
-plt.subplot(1, 2, 1)
-plt.xlim(0, 1)
-plt.plot(x, func, label="fitted")
-plt.plot(x, first_excited, "--", label="answer")
-plt.plot(x, first_excited_minus,  "--",label="answer_minus")
-plt.legend()
-plt.xlabel("$x$")
-plt.ylabel(r"$\Psi(x)$")
 
-# Plotting loss
 # 結果のプロット
 plt.figure(figsize=(10, 5))  # サイズ調整をすることで下部にスペースを作る
 plt.subplot(1, 2, 1)  # 2行1列の1番目のプロットとして設定
@@ -98,8 +91,7 @@ plt.ylabel(r"$\psi(x)$")
 
 # 損失のプロット（片対数グラフ）
 plt.subplot(1,2,2)  # 2行1列の2番目のプロットとして設定
-plt.yscale('log')  # 縦軸を対数スケールに設定
-plt.ylim(0, 50)
+plt.ylim(0, 10)
 plt.plot(results.history['loss'])
 plt.xlabel('Epochs')
 plt.ylabel('Loss')

@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 
 # 定数の定義
 N = 5000  # 格子点の数
-epochs = 10000  # 学習のエポック数
+epochs = 3000  # 学習のエポック数
 
 # 損失関数の重みの定義
 orthogonality_penalty_weight = 2e-8  # 直交性ペナルティの重み
@@ -81,8 +81,8 @@ plt.figure(figsize=(10, 5))
 plt.subplot(1, 2, 1)
 plt.xlim(0, 1)
 plt.plot(x, func, label="fitted")
-plt.plot(x, first_excited, label="answer")
-plt.plot(x, first_excited_minus, label="answer_minus")
+plt.plot(x, first_excited, "--", label="answer")
+plt.plot(x, first_excited_minus,  "--",label="answer_minus")
 plt.legend()
 plt.xlabel("$x$")
 plt.ylabel(r"$\Psi(x)$")

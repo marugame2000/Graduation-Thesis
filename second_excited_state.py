@@ -9,8 +9,15 @@ import matplotlib.pyplot as plt
 from keras.optimizers import Adam
 from keras.callbacks import ReduceLROnPlateau
 
-# 定数定義
-N = 3000
+# 定数の定義
+N = 5000  # 格子点の数
+epochs = 3000  # 学習のエポック数
+
+# 損失関数の重みの定義
+orthogonality_penalty_weight = 5e-9  # 直交性ペナルティの重み
+edge_penalty_weight = 1e8  # 端のペナルティの重み
+
+
 x = np.linspace(0, 1, N)
 # 目標とする波動関数の定義
 ground_state = np.sqrt(2) * sin(pi * x)
@@ -39,34 +46,23 @@ def variationalE(y_true, y_pred):
     wave = psi(y_pred)
     wave_nom = K.l2_normalize(wave, axis=0)
     dwave = dpsi(wave_nom)
-    kinetic_energy = N**2 * K.sum(K.square(dwave)) / pi**2
+    kinetic_energy = N ** 2 * K.sum(K.square(dwave)) / pi ** 2
 
-    # 直交性ペナルティの計算
-    orthogonality_penalty = sum([
-        (K.sum(state * wave_nom))**2
-        for state in [ground_state, first_excited, first_excited_minus]
-    ])
+    orthogonality_ground = K.sum(ground_state * wave_nom)
+    orthogonality_first = K.sum(first_excited * wave_nom)
+    orthogonality_penalty = ( orthogonality_ground ** 2 + orthogonality_first ** 2 ) * orthogonality_penalty_weight
 
-    # 端のペナルティの計算
-    edge_penalty = K.square(y_pred[0]) + K.square(y_pred[-1])
+    edge_penalty = (K.square(y_pred[0]) + K.square(y_pred[-1])) * edge_penalty_weight
 
-    # 総エネルギーを返す
-    return kinetic_energy + orthogonality_penalty * 5e-8 + edge_penalty * 1e9
+    return kinetic_energy + orthogonality_penalty + edge_penalty
 
 # ニューラルネットワークモデルの構築
 model = Sequential([
-    Dense(256, input_dim=1),
-    LeakyReLU(alpha=0.3),
-    Dense(128),
-    LeakyReLU(alpha=0.3),
-    Dense(128),
-    LeakyReLU(alpha=0.3),
-    Dense(128),
-    LeakyReLU(alpha=0.3),
-    Dense(64),
-    LeakyReLU(alpha=0.3),
-    Dense(64),
-    LeakyReLU(alpha=0.3),
+    Dense(256, input_dim=1, activation=LeakyReLU(alpha=0.3)),
+    Dense(128, activation=LeakyReLU(alpha=0.3)),
+    Dense(128, activation=LeakyReLU(alpha=0.3)),
+    Dense(64, activation=LeakyReLU(alpha=0.3)),
+    Dense(64, activation=LeakyReLU(alpha=0.3)),
     Dense(1, activation="linear")
 ])
 
@@ -85,7 +81,7 @@ reduce_lr = ReduceLROnPlateau(monitor='loss', factor=0.5, patience=50, min_lr=1e
 results = model.fit(
     x, 
     second_excited_answer, 
-    epochs=5000, 
+    epochs=epochs, 
     steps_per_epoch=1, 
     verbose=1, 
     shuffle=False, 
@@ -102,8 +98,8 @@ plt.figure(figsize=(10, 5))
 plt.subplot(1, 2, 1)
 plt.xlim(0, 1)
 plt.plot(x, func, label="Fitted")
-plt.plot(x, second_excited_answer, label="Answer")
-plt.plot(x, second_excited_answer_minus, label="Answer Minus")
+plt.plot(x, second_excited_answer,  "--",label="Answer")
+plt.plot(x, second_excited_answer_minus,  "--",label="Answer Minus")
 plt.legend()
 plt.xlabel("$x$")
 plt.ylabel(r"$\psi(x)$")

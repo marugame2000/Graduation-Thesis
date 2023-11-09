@@ -11,10 +11,11 @@ from keras.callbacks import ReduceLROnPlateau
 
 
 N = 5000  # 格子点の数
-epochs = 10000  # 学習のエポック数
+epochs = 3000  # 学習のエポック数
 
-orthogonality_penalty_weight = 7e-8  # 直交性ペナルティの重み
+orthogonality_penalty_weight = 5e-8  # 直交性ペナルティの重み
 edge_penalty_weight = 1e9 # 端のペナルティの重み
+normalization_penalty_weight=1e4
 
 x = np.linspace(0, 1, N)
 # 目標とする波動関数の定義
@@ -48,17 +49,23 @@ def variationalE(y_true, y_pred):
 
     orthogonality_ground = K.sum(ground_state * wave_nom)
     orthogonality_first = K.sum(first_excited * wave_nom)
-    orthogonality_penalty = ( orthogonality_ground ** 2 + orthogonality_first ** 2 ) * orthogonality_penalty_weight
+    orthogonality_penalty = (orthogonality_ground ** 2 + orthogonality_first ** 2) * orthogonality_penalty_weight
 
     edge_penalty = (K.square(y_pred[0]) + K.square(y_pred[-1])) * edge_penalty_weight
 
-    return kinetic_energy + orthogonality_penalty + edge_penalty -8
+    # 正規化条件ペナルティ
+    normalization_penalty = K.square(K.sum(K.square(wave_nom)) - 1) * normalization_penalty_weight
+
+    return kinetic_energy  + orthogonality_penalty + edge_penalty + normalization_penalty
 
 # ニューラルネットワークモデルの構築
 model = Sequential([
     Dense(256, input_dim=1, activation=LeakyReLU(alpha=0.3)),
+    Dense(256, activation=LeakyReLU(alpha=0.3)),
     Dense(128, activation=LeakyReLU(alpha=0.3)),
     Dense(128, activation=LeakyReLU(alpha=0.3)),
+    Dense(128, activation=LeakyReLU(alpha=0.3)),
+    Dense(64, activation=LeakyReLU(alpha=0.3)),
     Dense(64, activation=LeakyReLU(alpha=0.3)),
     Dense(64, activation=LeakyReLU(alpha=0.3)),
     Dense(1, activation="linear")
@@ -73,7 +80,7 @@ model.compile(loss=variationalE, optimizer=optimizer)
 model.summary()
 
 # 学習率低減のコールバック設定
-reduce_lr = ReduceLROnPlateau(monitor='loss', factor=0.5, patience=50, min_lr=1e-5, verbose=1)
+reduce_lr = ReduceLROnPlateau(monitor='loss', factor=0.5, patience=50, min_lr=5e-6, verbose=1)
 
 # モデルの訓練
 results = model.fit(
@@ -89,7 +96,8 @@ results = model.fit(
 # 予測と描画
 pred = model.predict(x)
 func = psi(pred)
-func = func / np.sqrt(np.sum(func ** 2) / N)
+func = func*1500
+#func = func / np.sqrt(np.sum(func ** 2) / N) 
 
 # 結果のプロット
 plt.figure(figsize=(10, 5))  # サイズ調整をすることで下部にスペースを作る

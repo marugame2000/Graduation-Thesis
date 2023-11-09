@@ -10,8 +10,8 @@ from keras.optimizers import Adam
 from keras.callbacks import ReduceLROnPlateau
 
 
-N = 10000  # 格子点の数
-epochs = 50000  # 学習のエポック数
+N = 5000  # 格子点の数
+epochs = 10000  # 学習のエポック数
 
 orthogonality_penalty_weight = 7e-8  # 直交性ペナルティの重み
 edge_penalty_weight = 1e9 # 端のペナルティの重み
@@ -52,7 +52,7 @@ def variationalE(y_true, y_pred):
 
     edge_penalty = (K.square(y_pred[0]) + K.square(y_pred[-1])) * edge_penalty_weight
 
-    return kinetic_energy + orthogonality_penalty + edge_penalty
+    return kinetic_energy + orthogonality_penalty + edge_penalty -8
 
 # ニューラルネットワークモデルの構築
 model = Sequential([

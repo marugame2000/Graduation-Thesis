@@ -28,15 +28,21 @@ def variationalE(y_true,y_pred):
     wave=psi(y_pred)
     wave_nom=K.l2_normalize(wave,0)
     dwave = dpsi(wave_nom)
-    return N**2 * K.sum(K.square(dwave))/pi**2
+    return N**2 * K.sum(K.square(dwave))/pi**2 - 1
 
-model=Sequential()
-model.add(Dense(2,input_dim=1,activation="sigmoid"))
-model.add(Dense(1,activation="linear"))
+model = Sequential([
+    Dense(256, input_dim=1, activation=LeakyReLU(alpha=0.3)),
+    Dense(128, activation=LeakyReLU(alpha=0.3)),
+    Dense(128, activation=LeakyReLU(alpha=0.3)),
+    Dense(64, activation=LeakyReLU(alpha=0.3)),
+    Dense(64, activation=LeakyReLU(alpha=0.3)),
+    Dense(1, activation="linear")
+])
+
 model.compile(loss=variationalE,optimizer="Adam")
 model.summary()
 
-results = model.fit(x,dummy,epochs=300,steps_per_epoch=1,verbose=1,shuffle=False)
+results = model.fit(x,dummy,epochs=1000,steps_per_epoch=1,verbose=1,shuffle=False)
 
 pred=model.predict(x)
 func=psi(pred)

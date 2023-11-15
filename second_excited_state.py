@@ -10,14 +10,14 @@ from keras.optimizers import Adam
 from keras.callbacks import ReduceLROnPlateau
 
 N = 5000 
-epochs = 30000  
+epochs = 100000  
 
-orthogonality_penalty_weight = 5e-4  
+orthogonality_penalty_weight = 5e-3
 edge_penalty_weight = 1e9 
-normalization_penalty_weight=1e6
+normalization_penalty_weight=0
 
 ground_state_weight = 1
-first_state_weight = 0.01
+first_state_weight = 1
 
 x = np.linspace(0, 1, N)
 
@@ -59,10 +59,11 @@ def variationalE(y_true, y_pred):
 
     normalization_penalty = K.square(K.sum(K.square(wave_nom)) - 1) * normalization_penalty_weight
 
-    return kinetic_energy + orthogonality_penalty + edge_penalty + node_penalty + normalization_penalty
+    return (kinetic_energy-9)**2 + orthogonality_penalty + edge_penalty + node_penalty + normalization_penalty
 
 model = Sequential([
     Dense(256, input_dim=1, activation=LeakyReLU(alpha=0.3)),
+    Dense(256, activation=LeakyReLU(alpha=0.3)),
     Dense(256, activation=LeakyReLU(alpha=0.3)),
     Dense(128, activation=LeakyReLU(alpha=0.3)),
     Dense(128, activation=LeakyReLU(alpha=0.3)),
@@ -94,8 +95,8 @@ results = model.fit(
 
 pred = model.predict(x)
 func = psi(pred)
-func = func*1800
-#func = func / np.sqrt(np.sum(func ** 2) / N) 
+#func = func*1800
+func = func / np.sqrt(np.sum(func ** 2) / N) 
 
 plt.figure(figsize=(10, 5)) 
 plt.subplot(1, 2, 1)  

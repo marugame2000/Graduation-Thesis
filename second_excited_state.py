@@ -10,9 +10,9 @@ from keras.optimizers import Adam
 from keras.callbacks import ReduceLROnPlateau
 
 N = 5000 
-epochs = 100000  
+epochs = 30000  
 
-orthogonality_penalty_weight = 5e-3
+orthogonality_penalty_weight = 5e-8
 edge_penalty_weight = 1e9 
 normalization_penalty_weight=0
 
@@ -36,9 +36,17 @@ def psi(y):
     return y_symmetrized
 
 def dpsi(y):
-    y_shifted_f = tf.roll(y, shift=-1, axis=0)
-    y_shifted_b = tf.roll(y, shift=+1, axis=0)
-    dy = (y_shifted_f - y_shifted_b) / 2
+    y_shifted_f1 = tf.roll(y, shift=-1, axis=0)
+    y_shifted_f2 = tf.roll(y, shift=-2, axis=0)
+    y_shifted_f3 = tf.roll(y, shift=-3, axis=0)
+    y_shifted_f4 = tf.roll(y, shift=-4, axis=0)
+
+    y_shifted_b1 = tf.roll(y, shift=+1, axis=0)
+    y_shifted_b2 = tf.roll(y, shift=+2, axis=0)
+    y_shifted_b3 = tf.roll(y, shift=+3, axis=0)
+    y_shifted_b4 = tf.roll(y, shift=+4, axis=0)
+    
+    dy = (y_shifted_f1 - y_shifted_b1) * 4/5 + (y_shifted_f2 - y_shifted_b2) * 1/5 + (y_shifted_f3 - y_shifted_b3) * (-4)/105 + (y_shifted_f4 - y_shifted_b4) * 1/280
     return dy
 
 def variationalE(y_true, y_pred):
@@ -59,7 +67,7 @@ def variationalE(y_true, y_pred):
 
     normalization_penalty = K.square(K.sum(K.square(wave_nom)) - 1) * normalization_penalty_weight
 
-    return (kinetic_energy-9)**2 + orthogonality_penalty + edge_penalty + node_penalty + normalization_penalty
+    return kinetic_energy + orthogonality_penalty + edge_penalty + node_penalty + normalization_penalty
 
 model = Sequential([
     Dense(256, input_dim=1, activation=LeakyReLU(alpha=0.3)),
@@ -81,7 +89,7 @@ model.compile(loss=variationalE, optimizer=optimizer)
 model.summary()
 
 
-reduce_lr = ReduceLROnPlateau(monitor='loss', factor=0.5, patience=50, min_lr=5e-6, verbose=1)
+reduce_lr = ReduceLROnPlateau(monitor='loss', factor=0.5, patience=50, min_lr=1e-5, verbose=1)
 
 results = model.fit(
     x, 

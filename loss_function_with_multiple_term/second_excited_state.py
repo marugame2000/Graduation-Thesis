@@ -9,10 +9,10 @@ import matplotlib.pyplot as plt
 from keras.optimizers import Adam
 from keras.callbacks import ReduceLROnPlateau
 
-N =5000 
-epochs = 3000  
+N = 10000 
+epochs = 20000  
 
-orthogonality_penalty_weight = 5e-8
+orthogonality_penalty_weight = 5e-5
 edge_penalty_weight = 1e9 
 normalization_penalty_weight=0
 
@@ -49,73 +49,51 @@ def dpsi(y):
     dy = (y_shifted_f1 - y_shifted_b1) * 4/5 + (y_shifted_f2 - y_shifted_b2) * (-1/5) + (y_shifted_f3 - y_shifted_b3) * 4/105 + (y_shifted_f4 - y_shifted_b4) * (-1/280)
     return dy
 
-class TrainingHistory(keras.callbacks.Callback):
-    def on_train_begin(self, logs={}):
-        self.orthogonality_penalties = []
-        self.orthogonality_penalties2 = []
-        self.kinetic_energies = []
-
-    def on_epoch_end(self, epoch, logs={}):
-        self.orthogonality_penalties.append(K.get_value(orthogonality_penalty_global))
-        self.orthogonality_penalties2.append(K.get_value(orthogonality_penalty2_global))
-        self.kinetic_energies.append(K.get_value(kinetic_energy_global))
-
-training_history = TrainingHistory()
-
-
-# グローバル変数を定義
-orthogonality_penalty_global = K.variable(0.0)
-orthogonality_penalty2_global = K.variable(0.0)
-kinetic_energy_global = K.variable(0.0)
-
 def variationalE(y_true, y_pred):
-
-    global orthogonality_penalty_global
-    wave = y_pred
+    wave = psi(y_pred)
     #wave=y_pred
-    wave_nom=wave
     wave_nom = K.l2_normalize(wave, axis=0)
-    dwave = dpsi(wave_nom)
+    dwave = dpsi(wave)
     kinetic_energy = N ** 2 * K.sum(K.square(dwave)) / pi ** 2
-    kinetic_energy_global.assign(kinetic_energy)
 
     orthogonality_ground = K.sum(ground_state * wave_nom) * ground_state_weight
     orthogonality_first = K.sum(first_excited * wave_nom) * first_state_weight
     orthogonality_first_minus = K.sum(first_excited * wave_nom) * first_state_weight
     orthogonality_penalty = (orthogonality_ground ** 2 + orthogonality_first ** 2 + orthogonality_first_minus** 2) * orthogonality_penalty_weight
-    orthogonality_penalty_global.assign(orthogonality_penalty)
 
     edge_penalty = (K.square(y_pred[0]) + K.square(y_pred[-1])) * edge_penalty_weight
 
-    orthogonality_penalty2 = K.sum(second_excited_answer * wave_nom) * 2
-    orthogonality_penalty2_global.assign(orthogonality_penalty2)
+    orthogonality_penalty2 = K.sum(second_excited_answer * wave_nom) * 1
 
     node1 = N // 3
     node2 = 2 * N // 3
     node_penalty = (K.square(wave_nom[node1]) + K.square(wave_nom[node2])) * 0
-    
-    #wave_nom = K.l2_normalize(wave, axis=0)
-    wavefunction_difference_penalty = K.sum(K.square(wave_nom - second_excited_answer)) * 1e-2
 
     normalization_penalty = K.square(K.sum(K.square(wave_nom)) - 1) * normalization_penalty_weight
 
-    return kinetic_energy*0 + orthogonality_penalty*0 + edge_penalty *0 + node_penalty + normalization_penalty + (orthogonality_penalty2 - 1 ) *0 + wavefunction_difference_penalty
+    return kinetic_energy + orthogonality_penalty + edge_penalty + node_penalty + normalization_penalty + (orthogonality_penalty2 - 1 )**2
 
 model = Sequential([
     Dense(256, input_dim=1, activation=LeakyReLU(alpha=0.3)),
     Dense(256, activation=LeakyReLU(alpha=0.3)),
-
-    Dense(1, activation="linear")
+    Dense(256, activation=LeakyReLU(alpha=0.3)),
+    Dense(128, activation=LeakyReLU(alpha=0.3)),
+    Dense(128, activation=LeakyReLU(alpha=0.3)),
+    Dense(128, activation=LeakyReLU(alpha=0.3)),
+    Dense(64, activation=LeakyReLU(alpha=0.3)),
+    Dense(64, activation=LeakyReLU(alpha=0.3)),
+    Dense(64, activation=LeakyReLU(alpha=0.3)),
+    Dense(1)
 ])
 
 learning_rate = 0.001
-optimizer = Adam(learning_rate=learning_rate)
+optimizer = Adam(learning_rate=learning_rate, epsilon=1e-9)
 model.compile(loss=variationalE, optimizer=optimizer)
 
 model.summary()
 
 
-reduce_lr = ReduceLROnPlateau(monitor='loss', factor=0.5, patience=50, min_lr=1e-5, verbose=1)
+reduce_lr = ReduceLROnPlateau(monitor='loss', factor=0.5, patience=50, min_lr=1e-6, verbose=1)
 
 results = model.fit(
     x, 
@@ -124,14 +102,14 @@ results = model.fit(
     steps_per_epoch=1, 
     verbose=1, 
     shuffle=False, 
-    callbacks=[reduce_lr,  training_history]
+    callbacks=[reduce_lr]
 )
 
-func = model.predict(x)
-#func = psi(pred)
+pred = model.predict(x)
+func = psi(pred)
 #func=pred
 #func = func*1800
-#func = func / np.sqrt(np.sum(func ** 2) / N) 
+func = func / np.sqrt(np.sum(func ** 2) / N) 
 
 plt.figure(figsize=(10, 5)) 
 plt.subplot(1, 2, 1)  
@@ -166,27 +144,7 @@ info_text = (f'N: {N}\n'
     f'Avg. Loss (Last 100 Epochs): {average_loss_last_100:.4e}')
 plt.figtext(0.5, 0.05, info_text, ha="center", fontsize=10, bbox={"facecolor":"white", "alpha":0.5, "pad":5})
 
-plt.tight_layout(rect=[0, 0.03, 1, 0.95])  # rectパラメータで図の余白を調整
+plt.tight_layout(rect=[0, 0.03, 1, 0.95]) 
 
 plt.show()
 
-plt.plot(training_history.orthogonality_penalties)
-plt.xlabel('Epochs')
-plt.ylabel('Orthogonality Penalty')
-plt.ylim(0, 5)
-plt.title('Orthogonality Penalty During Training')
-plt.show()
-
-plt.plot(training_history.orthogonality_penalties2)
-plt.xlabel('Epochs')
-plt.ylabel('Orthogonality Penalty')
-plt.ylim(0, 5)
-plt.title('Orthogonality Penalty During Training')
-plt.show()
-
-plt.plot(training_history.kinetic_energies)
-plt.xlabel('Epochs')
-plt.ylabel('Kinetic Energy')
-plt.ylim(0, 10)
-plt.title('Kinetic Energy During Training')
-plt.show()

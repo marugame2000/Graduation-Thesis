@@ -81,8 +81,7 @@ plt.legend()
 plt.xlabel("$x$")
 plt.ylabel(r"$\psi(x)$")
 
-# 損失のプロット（片対数グラフ）
-plt.subplot(1,2,2)  # 2行1列の2番目のプロットとして設定
+plt.subplot(1,2,2)
 plt.ylim(0, 10)
 plt.plot(results.history['loss'])
 plt.xlabel('Epochs')

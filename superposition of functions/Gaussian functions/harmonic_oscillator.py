@@ -11,20 +11,25 @@ import matplotlib.pyplot as plt
 from sympy import symbols, pi, cos, integrate
 from scipy.integrate import quad
 import time
+from libs.analytical_solution_harmonic_oscillator import solution
 
 #N_BASIS = 3
 X_CENTER_MIN = -0.5
 X_CENTER_MAX = 0.5
-X_MIN = -3.5
-X_MAX = 3.5
-N_SAMPLES = 3000
-epochs=10000
+X_MIN = -5
+X_MAX = 5
+N_SAMPLES = 5000
+epochs=20000
 
 #積分範囲を広げる
 
 def  ground_state_psi(h,N_BASIS):
 
     t0=time.time()
+
+    psi_solution = solution(h,0)
+    psi_solution_minus = -psi_solution
+
 
     def psi(n, l, x):
         l = l + 1
@@ -186,11 +191,13 @@ def  ground_state_psi(h,N_BASIS):
 
     print(np.sqrt(np.sum(predicted_psi ** 2)))
 
-    second_excited_answer = np.sqrt(2) * np.sin(np.pi * x_np)
+    second_excited_answer = (1/2) * h *  x_np ** 2
 
 
     import matplotlib.pyplot as plt
     plt.plot(x_np, predicted_psi)
+    plt.plot(x_np, psi_solution, "--", label="Answer")
+    plt.plot(x_np, psi_solution_minus, "--", label="Answer")
     plt.plot(x_np, second_excited_answer, "--", label="Answer")
     plt.xlim(-2,2)
     plt.ylim(-2,2)
@@ -206,4 +213,4 @@ def  ground_state_psi(h,N_BASIS):
 
     return c
 
-ground_state_psi(1e3,7)
+ground_state_psi(100,9)

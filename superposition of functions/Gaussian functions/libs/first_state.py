@@ -24,7 +24,7 @@ epochs=50000
 
 #積分範囲を広げる
 
-def  first_state_psi(h):
+def  first_state_psi(h,N_BASIS):
 
     #理論解を求める
     psi_solution = solution(h,2)
@@ -208,17 +208,7 @@ def  first_state_psi(h):
     second_excited_answer = (-1) * np.sqrt(2) * np.sin(np.pi * 2 * x_np)
 
 
-    import matplotlib.pyplot as plt
-    plt.plot(x_np, predicted_psi)
-    plt.plot(x_np, predicted_psi_ground)
-    plt.plot(x_np, psi_solution ,"--", label="Answer")
-    plt.plot(x_np, psi_solution_minus ,"--", label="Answer")
-    #plt.plot(x_np, second_excited_answer, "--", label="Answer")
-    plt.xlim(-2,2)
-    plt.ylim(-2,2)
-    plt.xlabel("Coordinate $x$ [Bohr]")
-    plt.ylabel("Wave amplitude")
-    plt.show()
+
 
     t3=time.time()
 
@@ -228,4 +218,4 @@ def  first_state_psi(h):
 
     return c
 
-first_state_psi(10)
+#first_state_psi(10)

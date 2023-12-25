@@ -11,27 +11,20 @@ import matplotlib.pyplot as plt
 from sympy import symbols, pi, cos, integrate
 from scipy.integrate import quad
 import time
-from libs.ground_state import ground_state_psi
-from libs.analytical_solution_dimensionless import solution
+import scipy.integrate as integrate
+import scipy.special as sp
 
-N_BASIS = 11
+#N_BASIS = 3
 X_CENTER_MIN = -0.5
 X_CENTER_MAX = 0.5
-X_MIN = -5
-X_MAX = 5
+X_MIN = -3.5
+X_MAX = 3.5
 N_SAMPLES = 3000
-epochs=50000
+epochs=3000
 
 #積分範囲を広げる
 
-def  first_state_psi(h):
-
-    #理論解を求める
-    psi_solution = solution(h,2)
-    psi_solution_minus = -psi_solution
-
-    #基底状態の波動関数を求める
-    c_ground = ground_state_psi(h,N_BASIS)
+def  ground_state_psi(h,N_BASIS):
 
     t0=time.time()
 
@@ -63,26 +56,20 @@ def  first_state_psi(h):
         #return dn + dl
 
     def V(x):
+
         return np.where((x < X_CENTER_MAX) & (x > X_CENTER_MIN), 0, h)
-        #return (1/2) * x**2
 
 
-    #ガウスの解析解を試す(np.erf)
 
-    def trapezoidal_rule(f, a, b, n=200):
-        h = (b - a) / n
-        x = np.linspace(a, b, n)
-        y = f(x)
-        return h * (0.5 * (y[0] + y[-1]) + np.sum(y[1:-1]))
-
-
-    def calc_h(n, l, m, k):
-        integrand = lambda x: (deriv_phi(n, l, x) * deriv_phi(m, k, x) / 2 + psi(n, l, x) * V(x) * psi(m, k, x))
-        return trapezoidal_rule(integrand, X_MIN, X_MAX)
 
     def calc_s(n, l, m, k):
         integrand = lambda x: psi(n, l, x) * psi(m, k, x)
-        return trapezoidal_rule(integrand, X_MIN, X_MAX)
+        return integrate.quad(integrand, -np.inf, np.inf)[0]
+
+    # calc_h 関数（np.quadを用いた無限区間での積分）
+    def calc_h(n, l, m, k):
+        integrand = lambda x: (deriv_phi(n, l, x) * deriv_phi(m, k, x) / 2 + psi(n, l, x) * V(x) * psi(m, k, x))
+        return integrate.quad(integrand, -np.inf, np.inf)[0]
 
 
 
@@ -111,27 +98,22 @@ def  first_state_psi(h):
         cSc = tf.tensordot(c, Sc, axes=([0, 1], [0, 1]))
         return cHc / cSc
 
-    def orthogonality_penalty(c):
-        c = tf.reshape(c, [N_BASIS, N_BASIS])
-
-        predicted_psi = tf.zeros_like(x, dtype=tf.float32) 
+    #def orthogonality_penalty(c, ground_state_psi):
+        predicted_psi = tf.zeros_like(ground_state_psi, dtype=tf.float32) 
         for i in range(N_BASIS):
             for j in range(N_BASIS):
                 predicted_psi += c[i, j] * psi(i, j, x)
-        predicted_psi = K.l2_normalize(predicted_psi, axis=0)
-
-        predicted_psi_ground = tf.zeros_like(x, dtype=tf.float32) 
-        for i in range(N_BASIS):
-            for j in range(N_BASIS):
-                predicted_psi_ground += c_ground[i, j] * psi(i, j, x)
-        predicted_psi_ground = K.l2_normalize(predicted_psi_ground, axis=0)
-        overlap = tf.tensordot(predicted_psi, predicted_psi_ground, axes=1)
+        overlap = tf.tensordot(predicted_psi, ground_state_psi, axes=1)
         return overlap**2
 
     def model_loss(_, c):
         energy_loss = calc_energy(c)
-
-        return energy_loss + orthogonality_penalty(c) * 1e3
+        ground_state = tf.math.sin(np.pi * x)
+        first_excited = (-1) * tf.math.sin(2 * np.pi * x)
+        #penalty = orthogonality_penalty(c, ground_state)
+        #penalty2 = orthogonality_penalty(c, first_excited)
+        #regularization_penalty = 1e5 * K.square(K.sum(c) - 1)
+        return energy_loss
 
     class CustomNormalizationLayer(tf.keras.layers.Layer):
         def __init__(self, **kwargs):
@@ -197,24 +179,15 @@ def  first_state_psi(h):
     predicted_psi = predicted_psi * (1.0 / np.sqrt(norm))
     #predicted_psi = predicted_psi / np.sqrt(np.sum(predicted_psi ** 2)) 
 
-    predicted_psi_ground = np.zeros_like(x_np) 
-    for i in range(N_BASIS):
-            for j in range(N_BASIS):
-                predicted_psi_ground += c_ground[i, j] * psi(i, j, x)
-    predicted_psi_ground = predicted_psi_ground * (1.0 / np.sqrt(norm))
-
     print(np.sqrt(np.sum(predicted_psi ** 2)))
 
-    second_excited_answer = (-1) * np.sqrt(2) * np.sin(np.pi * 2 * x_np)
+    second_excited_answer = np.sqrt(2) * np.sin(np.pi * x_np)
 
 
     import matplotlib.pyplot as plt
     plt.plot(x_np, predicted_psi)
-    plt.plot(x_np, predicted_psi_ground)
-    plt.plot(x_np, psi_solution ,"--", label="Answer")
-    plt.plot(x_np, psi_solution_minus ,"--", label="Answer")
-    #plt.plot(x_np, second_excited_answer, "--", label="Answer")
-    plt.xlim(-2,2)
+    plt.plot(x_np, second_excited_answer, "--", label="Answer")
+    plt.xlim(-1,2)
     plt.ylim(-2,2)
     plt.xlabel("Coordinate $x$ [Bohr]")
     plt.ylabel("Wave amplitude")
@@ -228,4 +201,4 @@ def  first_state_psi(h):
 
     return c
 
-first_state_psi(10)
+ground_state_psi(1e3,3)

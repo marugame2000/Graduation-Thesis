@@ -12,26 +12,30 @@ from sympy import symbols, pi, cos, integrate
 from scipy.integrate import quad
 import time
 from libs.ground_state import ground_state_psi
+from libs.first_state import first_state_psi
 from libs.analytical_solution_dimensionless import solution
 
-N_BASIS = 11
+N_BASIS = 15
 X_CENTER_MIN = -0.5
 X_CENTER_MAX = 0.5
 X_MIN = -5
 X_MAX = 5
 N_SAMPLES = 3000
-epochs=50000
+epochs=150000
 
 #積分範囲を広げる
 
-def  first_state_psi(h):
+def  second_state_psi(h):
 
     #理論解を求める
-    psi_solution = solution(h,2)
+    psi_solution = solution(h,3)
     psi_solution_minus = -psi_solution
 
     #基底状態の波動関数を求める
     c_ground = ground_state_psi(h,N_BASIS)
+
+    #第一励起状態の波動関数を求める
+    c_first = first_state_psi(h,N_BASIS)
 
     t0=time.time()
 
@@ -125,8 +129,17 @@ def  first_state_psi(h):
             for j in range(N_BASIS):
                 predicted_psi_ground += c_ground[i, j] * psi(i, j, x)
         predicted_psi_ground = K.l2_normalize(predicted_psi_ground, axis=0)
-        overlap = tf.tensordot(predicted_psi, predicted_psi_ground, axes=1)
-        return overlap**2
+
+        predicted_psi_first = tf.zeros_like(x, dtype=tf.float32) 
+        for i in range(N_BASIS):
+            for j in range(N_BASIS):
+                predicted_psi_first += c_first[i, j] * psi(i, j, x)
+        predicted_psi_first = K.l2_normalize(predicted_psi_first, axis=0)
+
+        overlap_ground = tf.tensordot(predicted_psi, predicted_psi_ground, axes=1)
+        overlap_first = tf.tensordot(predicted_psi, predicted_psi_first, axes=1)
+
+        return overlap_ground**2 + overlap_first**2
 
     def model_loss(_, c):
         energy_loss = calc_energy(c)
@@ -210,7 +223,7 @@ def  first_state_psi(h):
 
     import matplotlib.pyplot as plt
     plt.plot(x_np, predicted_psi)
-    plt.plot(x_np, predicted_psi_ground)
+    #plt.plot(x_np, predicted_psi_ground)
     plt.plot(x_np, psi_solution ,"--", label="Answer")
     plt.plot(x_np, psi_solution_minus ,"--", label="Answer")
     #plt.plot(x_np, second_excited_answer, "--", label="Answer")
@@ -228,4 +241,4 @@ def  first_state_psi(h):
 
     return c
 
-first_state_psi(10)
+second_state_psi(30)

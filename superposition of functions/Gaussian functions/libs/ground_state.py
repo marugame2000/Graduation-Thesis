@@ -15,10 +15,10 @@ import time
 #N_BASIS = 3
 X_CENTER_MIN = -0.5
 X_CENTER_MAX = 0.5
-X_MIN = -3.5
-X_MAX = 3.5
+X_MIN = -5
+X_MAX = 5
 N_SAMPLES = 3000
-epochs=3000
+epochs=30000
 
 #積分範囲を広げる
 
@@ -189,13 +189,13 @@ def  ground_state_psi(h,N_BASIS):
 
 
     import matplotlib.pyplot as plt
-    plt.plot(x_np, predicted_psi)
-    plt.plot(x_np, second_excited_answer, "--", label="Answer")
-    plt.xlim(-1,2)
-    plt.ylim(-2,2)
-    plt.xlabel("Coordinate $x$ [Bohr]")
-    plt.ylabel("Wave amplitude")
-    plt.show()
+    #plt.plot(x_np, predicted_psi)
+    #plt.plot(x_np, second_excited_answer, "--", label="Answer")
+    #plt.xlim(-1,2)
+    #plt.ylim(-2,2)
+    #plt.xlabel("Coordinate $x$ [Bohr]")
+    #plt.ylabel("Wave amplitude")
+    #plt.show()
 
     t3=time.time()
 

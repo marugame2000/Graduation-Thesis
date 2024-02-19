@@ -11,20 +11,33 @@ import matplotlib.pyplot as plt
 from sympy import symbols, pi, cos, integrate
 from scipy.integrate import quad
 import time
-from libs.ground_state import ground_state_psi
 from libs.analytical_solution_dimensionless import solution
+import json
+from datetime import datetime  # for generating timestamp
+import os
+from scipy.optimize import minimize, Bounds
+from libs.ground_state import ground_state_psi
 
-N_BASIS = 11
+#N_BASIS = 3
 X_CENTER_MIN = -0.5
 X_CENTER_MAX = 0.5
 X_MIN = -5
 X_MAX = 5
 N_SAMPLES = 3000
-epochs=50000
+epochs=10000
 
 #積分範囲を広げる
 
-def  first_state_psi(h):
+def  first_state_psi(h,N_BASIS):
+    
+    start_time = time.time()
+
+    # 日付と時間に基づいてサブフォルダを作成
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    log_folder = "logs"
+    session_folder = os.path.join(log_folder, timestamp)
+    if not os.path.exists(session_folder):
+        os.makedirs(session_folder)
 
     #理論解を求める
     psi_solution = solution(h,2)
@@ -32,6 +45,7 @@ def  first_state_psi(h):
 
     #基底状態の波動関数を求める
     c_ground = ground_state_psi(h,N_BASIS)
+    print(c_ground.dtype)
 
     t0=time.time()
 
@@ -64,8 +78,6 @@ def  first_state_psi(h):
 
     def V(x):
         return np.where((x < X_CENTER_MAX) & (x > X_CENTER_MIN), 0, h)
-        #return (1/2) * x**2
-
 
     #ガウスの解析解を試す(np.erf)
 
@@ -104,15 +116,19 @@ def  first_state_psi(h):
 
     t1=time.time()
 
-    def calc_energy(c):
-        Hc = tf.tensordot(H, c, axes=([2, 3], [0, 1]))
-        Sc = tf.tensordot(S, c, axes=([2, 3], [0, 1]))
-        cHc = tf.tensordot(c, Hc, axes=([0, 1], [0, 1]))
-        cSc = tf.tensordot(c, Sc, axes=([0, 1], [0, 1]))
+    def calc_energy(c_flat):
+        c = c_flat.reshape(N_BASIS, N_BASIS)
+        c = tf.cast(c, dtype=tf.float32)
+        #print(c.dtype)
+        Hc = np.tensordot(H, c, axes=([2, 3], [0, 1]))
+        Sc = np.tensordot(S, c, axes=([2, 3], [0, 1]))
+        cHc = np.tensordot(c, Hc, axes=([0, 1], [0, 1]))
+        cSc = np.tensordot(c, Sc, axes=([0, 1], [0, 1]))
         return cHc / cSc
 
     def orthogonality_penalty(c):
         c = tf.reshape(c, [N_BASIS, N_BASIS])
+        c = tf.cast(c, dtype=tf.float32)
 
         predicted_psi = tf.zeros_like(x, dtype=tf.float32) 
         for i in range(N_BASIS):
@@ -128,36 +144,12 @@ def  first_state_psi(h):
         overlap = tf.tensordot(predicted_psi, predicted_psi_ground, axes=1)
         return overlap**2
 
-    def model_loss(_, c):
+    def model_loss(c):
         energy_loss = calc_energy(c)
-
-        return energy_loss + orthogonality_penalty(c) * 1e3
-
-    class CustomNormalizationLayer(tf.keras.layers.Layer):
-        def __init__(self, **kwargs):
-            super(CustomNormalizationLayer, self).__init__(**kwargs)
-
-        def call(self, inputs):
-            return inputs / K.sum(inputs)
-
-    model = Sequential([
-        Dense(512, input_dim=2, activation=LeakyReLU(alpha=0.3)),
-        Dense(256, activation=LeakyReLU(alpha=0.3)),
-        Dense(256, activation=LeakyReLU(alpha=0.3)),
-        Dense(128, activation=LeakyReLU(alpha=0.3)),
-        Dense(128, activation=LeakyReLU(alpha=0.3)),
-        Dense(128, activation=LeakyReLU(alpha=0.3)),
-        Dense(64, activation=LeakyReLU(alpha=0.3)),
-        Dense(64, activation=LeakyReLU(alpha=0.3)),
-        Dense(64, activation=LeakyReLU(alpha=0.3)),
-        Dense(64, activation=LeakyReLU(alpha=0.3)),
-        Dense(1, activation="linear"),
-    ])
-
-
-    learning_rate = 0.001
-    optimizer = Adam(learning_rate=learning_rate)
-    model.compile(loss=model_loss, optimizer=optimizer)
+        penalty_loss=orthogonality_penalty(c)
+        #print(energy_loss.dtype)
+        #print(penalty_loss.dtype)
+        return energy_loss + penalty_loss * 1e7
 
     t2=time.time()
 
@@ -167,27 +159,29 @@ def  first_state_psi(h):
     index = np.array(np.meshgrid(index_n, index_l)).T.reshape(-1, 2)
     dummy = np.zeros((len(index), 1))
 
-    #model.fit(index, dummy, epochs=50000, steps_per_epoch=1, verbose=1, shuffle=False)
 
-    model.summary()
+    def norm_constraint(c_flat):
+        c = c_flat.reshape(N_BASIS, N_BASIS)
+        norm = np.tensordot(c, np.tensordot(S, c, axes=([2, 3], [0, 1])), axes=([0, 1], [0, 1]))
+        return np.sqrt(norm) - 1
 
-    reduce_lr = ReduceLROnPlateau(monitor='loss', factor=0.5, patience=50, min_lr=3e-6, verbose=1)
+    cons = {'type': 'eq', 'fun': norm_constraint}
 
-    results = model.fit(
-        index, 
-        dummy, 
-        epochs=epochs, 
-        steps_per_epoch=1, 
-        verbose=1, 
-        shuffle=False, 
-        callbacks=[reduce_lr]
-    )
+    lower_bounds = -np.inf * np.ones(N_BASIS * N_BASIS) 
+    upper_bounds = np.inf * np.ones(N_BASIS * N_BASIS) 
+    bounds = Bounds(lower_bounds, upper_bounds)
+    
+    c_initial = np.random.rand(N_BASIS * N_BASIS)
+    from scipy.optimize import minimize
 
-    c = model.predict(index).reshape(N_BASIS, N_BASIS)
+    result = minimize(model_loss, c_initial,bounds=bounds, constraints=cons, options={'maxiter': 200}, method='trust-constr')
+
+    c = result.x.reshape(N_BASIS, N_BASIS)
     norm = np.tensordot(c, np.tensordot(S, c, axes=([2, 3], [0, 1])), axes=([0, 1], [0, 1]))
+    energy = result.fun
+
     print(c)
-    print(K.sum(c))
-    energy = calc_energy(c)
+    print(orthogonality_penalty(c))
 
     x_np = x
     predicted_psi = np.zeros_like(x_np)
@@ -197,35 +191,60 @@ def  first_state_psi(h):
     predicted_psi = predicted_psi * (1.0 / np.sqrt(norm))
     #predicted_psi = predicted_psi / np.sqrt(np.sum(predicted_psi ** 2)) 
 
-    predicted_psi_ground = np.zeros_like(x_np) 
-    for i in range(N_BASIS):
-            for j in range(N_BASIS):
-                predicted_psi_ground += c_ground[i, j] * psi(i, j, x)
-    predicted_psi_ground = predicted_psi_ground * (1.0 / np.sqrt(norm))
-
     print(np.sqrt(np.sum(predicted_psi ** 2)))
 
-    second_excited_answer = (-1) * np.sqrt(2) * np.sin(np.pi * 2 * x_np)
-
+    second_excited_answer = np.sqrt(2) * np.sin(np.pi * x_np)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    graph_filename = os.path.join(session_folder, "graph.png")
 
     import matplotlib.pyplot as plt
     plt.plot(x_np, predicted_psi)
-    plt.plot(x_np, predicted_psi_ground)
+    #plt.plot(x_np, second_excited_answer, "--", label="Answer")
     plt.plot(x_np, psi_solution ,"--", label="Answer")
     plt.plot(x_np, psi_solution_minus ,"--", label="Answer")
-    #plt.plot(x_np, second_excited_answer, "--", label="Answer")
     plt.xlim(-2,2)
     plt.ylim(-2,2)
     plt.xlabel("Coordinate $x$ [Bohr]")
     plt.ylabel("Wave amplitude")
+
+
+    plt.savefig(graph_filename)
     plt.show()
+    plt.close()
 
-    t3=time.time()
 
-    print("t1-t0 = %e"%(t1-t0))
-    print("t2-t1 = %e"%(t2-t1))
-    print("t3-t2 = %e"%(t3-t2))
+    end_time = time.time()
+    execution_time = end_time - start_time
+    print(f"Total Execution Time: {execution_time} seconds")
+
+    difference = np.mean(np.abs(predicted_psi - psi_solution))
+    difference_minus = np.mean(np.abs(predicted_psi - psi_solution_minus))
+    energy = calc_energy(c)
+    # 結果の出力とログ
+    print(f"Mean Absolute Difference: {difference}")
+    print(f"Energy: {energy}")
+    # Ensure all values are serializable
+    log_data = {
+        'method=trust-constr'
+        'N_BASIS': N_BASIS,
+        'h': h,
+        'epochs' : epochs,
+        'difference': float(difference),  # Convert to float
+        'difference_minus': float(difference_minus),  # Convert to float
+        'energy': float(energy.numpy()) if hasattr(energy, 'numpy') else float(energy),  # Convert TensorFlow tensor to float
+        'execution_time': float(execution_time)  # Convert to float
+    }
+
+    # Generate a timestamp
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    # Log data with a unique filename
+    log_filename = os.path.join(session_folder, "log.json")
+
+    with open(log_filename, 'w') as log_file:
+        json.dump(log_data, log_file, indent=4)
 
     return c
 
-first_state_psi(10)
+first_state_psi(50,9)
+

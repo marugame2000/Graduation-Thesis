@@ -195,15 +195,7 @@ def  ground_state_psi(h,N_BASIS):
 
 
     import matplotlib.pyplot as plt
-    plt.plot(x_np, predicted_psi)
-    plt.plot(x_np, psi_solution, "--", label="Answer")
-    plt.plot(x_np, psi_solution_minus, "--", label="Answer")
-    plt.plot(x_np, second_excited_answer, "--", label="Answer")
-    plt.xlim(-2,2)
-    plt.ylim(-2,2)
-    plt.xlabel("Coordinate $x$ [Bohr]")
-    plt.ylabel("Wave amplitude")
-    plt.show()
+
 
     t3=time.time()
 
@@ -213,4 +205,4 @@ def  ground_state_psi(h,N_BASIS):
 
     return c
 
-ground_state_psi(100,9)
+#ground_state_psi(1000,9)

@@ -11,14 +11,17 @@ import matplotlib.pyplot as plt
 from sympy import symbols, pi, cos, integrate
 from scipy.integrate import quad
 import time
-import scipy.integrate as integrate
-import scipy.special as sp
+from libs.analytical_solution_dimensionless import solution
+import json
+from datetime import datetime  # for generating timestamp
+import os
+from scipy.optimize import minimize, Bounds
 
 #N_BASIS = 3
 X_CENTER_MIN = -0.5
 X_CENTER_MAX = 0.5
-X_MIN = -3.5
-X_MAX = 3.5
+X_MIN = -5
+X_MAX = 5
 N_SAMPLES = 3000
 epochs=3000
 
@@ -26,12 +29,24 @@ epochs=3000
 
 def  ground_state_psi(h,N_BASIS):
 
+
+    # 日付と時間に基づいてサブフォルダを作成
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    log_folder = "logs"
+    session_folder = os.path.join(log_folder, timestamp)
+    if not os.path.exists(session_folder):
+        os.makedirs(session_folder)
+
+    #理論解を求める
+    psi_solution = solution(h,1)
+    psi_solution_minus = -psi_solution
+
     t0=time.time()
 
     def psi(n, l, x):
         l = l + 1
         mu_n = tf.cast(X_CENTER_MIN + (X_CENTER_MAX - X_CENTER_MIN) * n / (N_BASIS - 1), tf.float32)
-        l = tf.cast(l / 20, tf.float32)
+        l = tf.cast(l / 40, tf.float32)
         coefficient = 1 / (l * tf.sqrt(2 * np.pi))
         exponent = -(x - mu_n) ** 2 / (2 * l ** 2)
         return coefficient * tf.exp(exponent)
@@ -42,7 +57,7 @@ def  ground_state_psi(h,N_BASIS):
     def deriv_phi(n, l, x):
         l = l + 1
         mu_n = tf.cast(X_CENTER_MIN + (X_CENTER_MAX - X_CENTER_MIN) * n / (N_BASIS - 1), tf.float32)
-        l = tf.cast(l / 20, tf.float32)
+        l = tf.cast(l / 40, tf.float32)
         coefficient = 1 / (l * tf.sqrt(2 * np.pi))
         exponent = -(x - mu_n) ** 2 / (2 * l ** 2)
         normal_dist = coefficient * tf.exp(exponent)
@@ -56,20 +71,24 @@ def  ground_state_psi(h,N_BASIS):
         #return dn + dl
 
     def V(x):
-
         return np.where((x < X_CENTER_MAX) & (x > X_CENTER_MIN), 0, h)
 
+    #ガウスの解析解を試す(np.erf)
+
+    def trapezoidal_rule(f, a, b, n=200):
+        h = (b - a) / n
+        x = np.linspace(a, b, n)
+        y = f(x)
+        return h * (0.5 * (y[0] + y[-1]) + np.sum(y[1:-1]))
 
 
+    def calc_h(n, l, m, k):
+        integrand = lambda x: (deriv_phi(n, l, x) * deriv_phi(m, k, x) / 2 + psi(n, l, x) * V(x) * psi(m, k, x))
+        return trapezoidal_rule(integrand, X_MIN, X_MAX)
 
     def calc_s(n, l, m, k):
         integrand = lambda x: psi(n, l, x) * psi(m, k, x)
-        return integrate.quad(integrand, -np.inf, np.inf)[0]
-
-    # calc_h 関数（np.quadを用いた無限区間での積分）
-    def calc_h(n, l, m, k):
-        integrand = lambda x: (deriv_phi(n, l, x) * deriv_phi(m, k, x) / 2 + psi(n, l, x) * V(x) * psi(m, k, x))
-        return integrate.quad(integrand, -np.inf, np.inf)[0]
+        return trapezoidal_rule(integrand, X_MIN, X_MAX)
 
 
 
@@ -91,11 +110,12 @@ def  ground_state_psi(h,N_BASIS):
 
     t1=time.time()
 
-    def calc_energy(c):
-        Hc = tf.tensordot(H, c, axes=([2, 3], [0, 1]))
-        Sc = tf.tensordot(S, c, axes=([2, 3], [0, 1]))
-        cHc = tf.tensordot(c, Hc, axes=([0, 1], [0, 1]))
-        cSc = tf.tensordot(c, Sc, axes=([0, 1], [0, 1]))
+    def calc_energy(c_flat):
+        c = c_flat.reshape(N_BASIS, N_BASIS)
+        Hc = np.tensordot(H, c, axes=([2, 3], [0, 1]))
+        Sc = np.tensordot(S, c, axes=([2, 3], [0, 1]))
+        cHc = np.tensordot(c, Hc, axes=([0, 1], [0, 1]))
+        cSc = np.tensordot(c, Sc, axes=([0, 1], [0, 1]))
         return cHc / cSc
 
     #def orthogonality_penalty(c, ground_state_psi):
@@ -113,33 +133,8 @@ def  ground_state_psi(h,N_BASIS):
         #penalty = orthogonality_penalty(c, ground_state)
         #penalty2 = orthogonality_penalty(c, first_excited)
         #regularization_penalty = 1e5 * K.square(K.sum(c) - 1)
-        return energy_loss
+        return energy_loss** 2
 
-    class CustomNormalizationLayer(tf.keras.layers.Layer):
-        def __init__(self, **kwargs):
-            super(CustomNormalizationLayer, self).__init__(**kwargs)
-
-        def call(self, inputs):
-            return inputs / K.sum(inputs)
-
-    model = Sequential([
-        Dense(512, input_dim=2, activation=LeakyReLU(alpha=0.3)),
-        Dense(256, activation=LeakyReLU(alpha=0.3)),
-        Dense(256, activation=LeakyReLU(alpha=0.3)),
-        Dense(128, activation=LeakyReLU(alpha=0.3)),
-        Dense(128, activation=LeakyReLU(alpha=0.3)),
-        Dense(128, activation=LeakyReLU(alpha=0.3)),
-        Dense(64, activation=LeakyReLU(alpha=0.3)),
-        Dense(64, activation=LeakyReLU(alpha=0.3)),
-        Dense(64, activation=LeakyReLU(alpha=0.3)),
-        Dense(64, activation=LeakyReLU(alpha=0.3)),
-        Dense(1, activation="linear"),
-    ])
-
-
-    learning_rate = 0.001
-    optimizer = Adam(learning_rate=learning_rate)
-    model.compile(loss=model_loss, optimizer=optimizer)
 
     t2=time.time()
 
@@ -149,56 +144,103 @@ def  ground_state_psi(h,N_BASIS):
     index = np.array(np.meshgrid(index_n, index_l)).T.reshape(-1, 2)
     dummy = np.zeros((len(index), 1))
 
-    #model.fit(index, dummy, epochs=50000, steps_per_epoch=1, verbose=1, shuffle=False)
 
-    model.summary()
+    def norm_constraint(c_flat):
+        c = c_flat.reshape(N_BASIS, N_BASIS)
+        norm = np.tensordot(c, np.tensordot(S, c, axes=([2, 3], [0, 1])), axes=([0, 1], [0, 1]))
+        return np.sqrt(norm) - 1
+    
+    # 制約の追加
+    cons = {'type': 'eq', 'fun': norm_constraint}
 
-    reduce_lr = ReduceLROnPlateau(monitor='loss', factor=0.5, patience=50, min_lr=3e-6, verbose=1)
+    # 各変数の範囲を非常に小さい値から大きい値までとする
+    lower_bounds = -np.inf * np.ones(N_BASIS * N_BASIS)  # 下限を非常に小さな値に設定
+    upper_bounds = np.inf * np.ones(N_BASIS * N_BASIS)   # 上限を非常に大きな値に設定
+    bounds = Bounds(lower_bounds, upper_bounds)
+    
+    # 初期係数の設定
+    c_initial = np.random.rand(N_BASIS * N_BASIS)
+    from scipy.optimize import minimize
 
-    results = model.fit(
-        index, 
-        dummy, 
-        epochs=epochs, 
-        steps_per_epoch=1, 
-        verbose=1, 
-        shuffle=False, 
-        callbacks=[reduce_lr]
-    )
+    start_time = time.time()
+    # 最適化
+    result = minimize(calc_energy, c_initial,constraints=cons, bounds=bounds, method='trust-constr')
+        # タイマー終了
+    end_time = time.time()
+    execution_time = end_time - start_time
+    print(f"Total Execution Time: {execution_time} seconds")
 
-    c = model.predict(index).reshape(N_BASIS, N_BASIS)
+    # 結果の解析
+    c = result.x.reshape(N_BASIS, N_BASIS)
     norm = np.tensordot(c, np.tensordot(S, c, axes=([2, 3], [0, 1])), axes=([0, 1], [0, 1]))
+    energy = result.fun
+
     print(c)
-    print(K.sum(c))
-    energy = calc_energy(c)
 
     x_np = x
     predicted_psi = np.zeros_like(x_np)
     for i in range(N_BASIS):
         for j in range(N_BASIS):
             predicted_psi += c[i, j] * psi(i, j, x_np)
-    predicted_psi = predicted_psi * (1.0 / np.sqrt(norm))
+    #predicted_psi = predicted_psi * (1.0 / np.sqrt(norm))
     #predicted_psi = predicted_psi / np.sqrt(np.sum(predicted_psi ** 2)) 
 
     print(np.sqrt(np.sum(predicted_psi ** 2)))
 
     second_excited_answer = np.sqrt(2) * np.sin(np.pi * x_np)
-
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    graph_filename = os.path.join(session_folder, "graph.png")
 
     import matplotlib.pyplot as plt
     plt.plot(x_np, predicted_psi)
-    plt.plot(x_np, second_excited_answer, "--", label="Answer")
-    plt.xlim(-1,2)
+    #plt.plot(x_np, second_excited_answer, "--", label="Answer")
+    plt.plot(x_np, psi_solution ,"--", label="Answer")
+    plt.plot(x_np, psi_solution_minus ,"--", label="Answer")
+    plt.xlim(-2,2)
     plt.ylim(-2,2)
     plt.xlabel("Coordinate $x$ [Bohr]")
     plt.ylabel("Wave amplitude")
+
+
+    plt.savefig(graph_filename)
     plt.show()
+    plt.close()
 
-    t3=time.time()
 
-    print("t1-t0 = %e"%(t1-t0))
-    print("t2-t1 = %e"%(t2-t1))
-    print("t3-t2 = %e"%(t3-t2))
+    # タイマー終了
+    end_time = time.time()
+    execution_time = end_time - start_time
+    print(f"Total Execution Time: {execution_time} seconds")
+
+    # ユニークなファイル名でデータをログ
+    difference = np.mean(np.abs(predicted_psi - psi_solution))
+    difference_minus = np.mean(np.abs(predicted_psi - psi_solution_minus))
+    energy = calc_energy(c)
+    # 結果の出力とログ
+    print(f"Mean Absolute Difference: {difference}")
+    print(f"Energy: {energy}")
+    # Ensure all values are serializable
+    log_data = {
+        'method=trust-constr'
+        'N_BASIS': N_BASIS,
+        'h': h,
+        'epochs' : epochs,
+        'difference': float(difference),  # Convert to float
+        'difference_minus': float(difference_minus),  # Convert to float
+        'energy': float(energy.numpy()) if hasattr(energy, 'numpy') else float(energy),  # Convert TensorFlow tensor to float
+        'execution_time': float(execution_time)  # Convert to float
+    }
+
+    # Generate a timestamp
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    # Log data with a unique filename
+    log_filename = os.path.join(session_folder, "log.json")
+
+    with open(log_filename, 'w') as log_file:
+        json.dump(log_data, log_file, indent=4)
 
     return c
 
-ground_state_psi(1e3,3)
+ground_state_psi(50000,11)
+

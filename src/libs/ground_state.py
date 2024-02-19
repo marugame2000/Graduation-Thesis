@@ -18,7 +18,7 @@ X_CENTER_MAX = 0.5
 X_MIN = -5
 X_MAX = 5
 N_SAMPLES = 3000
-epochs=30000
+epochs=10000
 
 #積分範囲を広げる
 

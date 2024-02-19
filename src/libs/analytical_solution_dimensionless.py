@@ -77,16 +77,16 @@ def solution(V0,k):
     energies_neg = [compute_energy(alpha) for alpha, _ in final_intersections_neg]
 
     # エネルギーの出力
-    print("Energies from intersections with tan:")
+    #print("Energies from intersections with tan:")
     I=1
     for E in energies_pos:
-        print(f"E{I} = {E:.5f} (eV)")
+        #print(f"E{I} = {E:.5f} (eV)")
         I=I+2
 
-    print("\nEnergies from intersections with cot:")
+    #print("\nEnergies from intersections with cot:")
     N=2
     for E in energies_neg:
-        print(f"E{N} = {E:.5f} (eV)")
+        #print(f"E{N} = {E:.5f} (eV)")
         N=N+2
 
     P=max(I,N)
@@ -171,3 +171,4 @@ def solution(V0,k):
     y_vals = np.concatenate([y_vals2, y_vals1, y_vals3])
 
     return y_vals
+
